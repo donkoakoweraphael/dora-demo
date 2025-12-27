@@ -1,3 +1,9 @@
+# Node.js .gitignore
+node_modules
+.env
+deployment.json
+status.json
+
 # Logs
 logs
 *.log
