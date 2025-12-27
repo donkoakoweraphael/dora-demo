@@ -1,4 +1,10 @@
+# https://github.com/donkoakoweraphael/dora-demo/.github/workflows/deploy-to-prod.yml
 name: Simulate deploy to production
+
+# IMPORTANT : donner aux actions la permission d'écrire les "deployments"
+permissions:
+  contents: read
+  deployments: write
 
 on:
   push:
@@ -41,6 +47,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
+          echo "No deployment id available; aborting status post."
+          exit 1
+        fi
         STATUS_RESPONSE=$(curl -s -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github+json" \
