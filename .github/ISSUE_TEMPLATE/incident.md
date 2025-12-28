@@ -1,4 +1,3 @@
-```markdown
 ---
 name: Incident
 about: Signaler un incident lié à un déploiement en production
@@ -30,4 +29,3 @@ Décrivez l'impact (pages affected, services, gravité).
 
 ## Remarques / Diagnostic
 Ajoutez les logs, captures et actions entreprises.
-```
