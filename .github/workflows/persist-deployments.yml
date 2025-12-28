@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout (no credentials)
+    - name: Checkout (with credentials for push)
       uses: actions/checkout@v4
       with:
-        persist-credentials: false
+        persist-credentials: true
 
     - name: Install jq
       run: sudo apt-get update && sudo apt-get install -y jq git
@@ -58,20 +58,17 @@ jobs:
         echo "$STATUS_RESPONSE" > status.json
         cat status.json || true
 
-    - name: Save artifacts to repo data/ and push
+    - name: Save artifacts to repo data/ and push (use GITHUB_TOKEN)
       env:
         REPO: ${{ github.repository }}
-        GIT_TOKEN: ${{ secrets.DORA_PERSONAL_TOKEN }}
         DEPLOYMENT_ID: ${{ env.DEPLOYMENT_ID }}
       run: |
         if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
           echo "No deployment id; nothing to persist."
           exit 1
         fi
-        # prepare repo workspace
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git remote set-url origin https://x-access-token:${GIT_TOKEN}@github.com/${REPO}.git
         mkdir -p data/deployments data/statuses
         TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
         cp deployment.json data/deployments/${DEPLOYMENT_ID}_${TIMESTAMP}.json || true
