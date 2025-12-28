@@ -1,0 +1,81 @@
+name: Persist deployment artifacts to repo
+
+permissions:
+  contents: write
+  deployments: write
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-and-persist:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout (no credentials)
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq git
+
+    - name: Create GitHub deployment (production)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Creating deployment for $GITHUB_SHA"
+        DEPLOY_RESPONSE=$(curl -s -X POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          https://api.github.com/repos/${{ github.repository }}/deployments \
+          -d "{\"ref\":\"${{ github.sha }}\",\"environment\":\"production\",\"required_contexts\":[],\"auto_merge\":false,\"description\":\"Deployment from Actions\"}")
+        echo "$DEPLOY_RESPONSE" > deployment.json
+        DEPLOYMENT_ID=$(echo "$DEPLOY_RESPONSE" | jq -r .id)
+        echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+        cat deployment.json || true
+
+    - name: Simulate deploy
+      run: |
+        echo "Simulating deploy..."
+        sleep 5
+
+    - name: Mark deployment as success
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
+          echo "No deployment id available; aborting status post."
+          exit 1
+        fi
+        STATUS_RESPONSE=$(curl -s -X POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          https://api.github.com/repos/${{ github.repository }}/deployments/$DEPLOYMENT_ID/statuses \
+          -d '{"state":"success","description":"Deployed to production","environment":"production"}')
+        echo "$STATUS_RESPONSE" > status.json
+        cat status.json || true
+
+    - name: Save artifacts to repo data/ and push
+      env:
+        REPO: ${{ github.repository }}
+        GIT_TOKEN: ${{ secrets.DORA_PERSONAL_TOKEN }}
+        DEPLOYMENT_ID: ${{ env.DEPLOYMENT_ID }}
+      run: |
+        if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
+          echo "No deployment id; nothing to persist."
+          exit 1
+        fi
+        # prepare repo workspace
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://x-access-token:${GIT_TOKEN}@github.com/${REPO}.git
+        mkdir -p data/deployments data/statuses
+        TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+        cp deployment.json data/deployments/${DEPLOYMENT_ID}_${TIMESTAMP}.json || true
+        cp status.json data/statuses/${DEPLOYMENT_ID}_${TIMESTAMP}.json || true
+        git add data/deployments data/statuses || true
+        git commit -m "Persist deployment ${DEPLOYMENT_ID} at ${TIMESTAMP}" || echo "Nothing to commit"
+        git push origin HEAD:main
