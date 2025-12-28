@@ -4,6 +4,15 @@ node_modules
 deployment.json
 status.json
 
+# Python .gitignore
+__pycache__/
+.pytest_cache/
+.venv/
+env/
+venv/
+ENV/
+
+
 # Logs
 logs
 *.log
