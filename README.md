@@ -11,4 +11,4 @@ Démonstration pas-à-pas pour instrumenter les indicateurs DORA (Deployment Fre
 3. Téléchargement des artefacts (deployment.json / status.json) pour valider.
 4. Puis nous collecterons ces événements et calculerons les métriques.
 
-Voir les autres fichiers dans le repo.
+Voir les autres fichiers dans le repo.test leadtime
